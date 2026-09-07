@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartVision</title>
+<style>
+    body {
+        margin: 0;
+        background: #000;
+        color: #fff;
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+    }
+    #video {
+        width: 100%;
+        max-width: 500px;
+        border-radius: 8px;
+    }
+    #statut {
+        padding: 12px;
+        text-align: center;
+        font-size: 14px;
+        min-height: 60px;
+    }
+    #config {
+        padding: 10px;
+        width: 90%;
+        max-width: 500px;
+    }
+    #config input {
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+    }
+    button {
+        padding: 14px 28px;
+        font-size: 18px;
+        border-radius: 8px;
+        border: none;
+        background: #2e7d32;
+        color: white;
+        margin: 10px;
+    }
+    button.arret {
+        background: #c62828;
+    }
+    #dernier_message {
+        padding: 10px;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        color: #4caf50;
+    }
+</style>
+</head>
+<body>
+
+<div id="config">
+    <label>Adresse du serveur (ex: http://192.168.1.10:5000)</label>
+    <input type="text" id="adresse_serveur" placeholder="http://192.168.1.10:5000">
+</div>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<div id="statut">En attente de démarrage...</div>
+<div id="dernier_message"></div>
+
+<button id="btn_demarrer">Démarrer</button>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const statut = document.getElementById('statut');
+const dernierMessage = document.getElementById('dernier_message');
+const btnDemarrer = document.getElementById('btn_demarrer');
+const champAdresse = document.getElementById('adresse_serveur');
+
+let enCours = false;
+let intervalleId = null;
+const DELAI_ENTRE_CAPTURES_MS = 2500; // toutes les 2.5 secondes
+
+// Récupère l'adresse déjà enregistrée si elle existe
+champAdresse.value = window.localStorage ? (window.localStorage.getItem('smartvision_adresse') || '') : '';
+
+async function demarrerCamera() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, // caméra arrière de préférence
+        audio: false
+    });
+    video.srcObject = stream;
+}
+
+function parler(texte) {
+    // Coupe toute parole en cours pour ne pas empiler les messages
+    window.speechSynthesis.cancel();
+    const énoncé = new SpeechSynthesisUtterance(texte);
+    énoncé.lang = 'fr-FR';
+    énoncé.rate = 1.05;
+    window.speechSynthesis.speak(énoncé);
+}
+
+async function capturerEtEnvoyer() {
+    const adresse = champAdresse.value.trim();
+    if (!adresse) {
+        statut.textContent = "⚠️ Renseigne l'adresse du serveur d'abord";
+        return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const contexte = canvas.getContext('2d');
+    contexte.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(async (blob) => {
+        const formulaire = new FormData();
+        formulaire.append('image', blob, 'frame.jpg');
+
+        statut.textContent = "Analyse en cours...";
+
+        try {
+            const reponse = await fetch(adresse + '/analyser', {
+                method: 'POST',
+                body: formulaire
+            });
+
+            if (!reponse.ok) {
+                statut.textContent = "❌ Erreur serveur (" + reponse.status + ")";
+                return;
+            }
+
+            const resultat = await reponse.json();
+            statut.textContent = "✅ Dernière analyse OK";
+            dernierMessage.textContent = resultat.message;
+            parler(resultat.message);
+
+        } catch (erreur) {
+            statut.textContent = "❌ Impossible de joindre le serveur (vérifie l'adresse et le Wi-Fi)";
+        }
+    }, 'image/jpeg', 0.8);
+}
+
+btnDemarrer.addEventListener('click', async () => {
+    if (!enCours) {
+        // Sauvegarde l'adresse pour la prochaine fois
+        if (window.localStorage) {
+            window.localStorage.setItem('smartvision_adresse', champAdresse.value.trim());
+        }
+
+        try {
+            await demarrerCamera();
+        } catch (erreur) {
+            statut.textContent = "❌ Impossible d'accéder à la caméra : " + erreur.message;
+            return;
+        }
+
+        enCours = true;
+        btnDemarrer.textContent = "Arrêter";
+        btnDemarrer.classList.add('arret');
+        statut.textContent = "Démarré, analyse toutes les 2.5s...";
+
+        intervalleId = setInterval(capturerEtEnvoyer, DELAI_ENTRE_CAPTURES_MS);
+
+    } else {
+        clearInterval(intervalleId);
+        window.speechSynthesis.cancel();
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(piste => piste.stop());
+        }
+        enCours = false;
+        btnDemarrer.textContent = "Démarrer";
+        btnDemarrer.classList.remove('arret');
+        statut.textContent = "Arrêté.";
+    }
+});
+</script>
+
+</body>
+</html>
