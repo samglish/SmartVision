@@ -539,6 +539,7 @@ local IP address:
 
 The server listens on port `5000` by default. The full address to enter on the
 phone will look like `http://192.168.X.X:5000`.
+Server test : https://smartvision-ifs5.onrender.com
 
 If the phone cannot reach the server, check:
 - Both devices are on the same Wi-Fi network (not one on Wi-Fi and one on mobile
