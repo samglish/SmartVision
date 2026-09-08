@@ -57,16 +57,16 @@ driven by this context.
 
 ```
 ┌─────────────────────────┐        Wi-Fi (local network)        ┌──────────────────────────┐
-│         PHONE            │ ───────────────────────────────────▶ │          SERVER           │
-│  (smartvision_telephone  │        photo every ~2.5s (HTTP POST)  │  (serveur_smartvision.py)│
-│         .html)           │                                        │                          │
-│                          │ ◀─────────────────────────────────── │  YOLOv8 (objects)         │
-│  - Live camera preview   │        JSON: detections + message      │  SegFormer (surfaces)    │
-│  - Captures frames       │                                        │  Fusion + priority        │
-│  - Sends to server       │                                        │  ranking                  │
-│  - Speaks result via     │                                        │                          │
-│    Web Speech API        │                                        │                          │
-└─────────────────────────┘                                        └──────────────────────────┘
+│         PHONE           │ ───────────────────────────────────▶│          SERVER          │
+│  (smartvision_telephone │        photo every ~2.5s (HTTP POST)│  (serveur_smartvision.py)│
+│         .html)          │                                     │                          │
+│                         │ ◀───────────────────────────────────│  YOLOv8 (objects)        │
+│  - Live camera preview  │        JSON: detections + message   │  SegFormer (surfaces)    │
+│  - Captures frames      │                                     │  Fusion + priority       │
+│  - Sends to server      │                                     │  ranking                 │
+│  - Speaks result via    │                                     │                          │
+│    Web Speech API       │                                     │                          │
+└─────────────────────────┘                                     └──────────────────────────┘
 ```
 
 The system is split into two independent halves:
